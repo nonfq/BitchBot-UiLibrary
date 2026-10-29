@@ -1,12 +1,24 @@
-local Lib = loadstring(readfile("https://raw.githubusercontent.com/nonfq/BitchBot-UiLibrary/main/main.luau"))({
-	Name      = "My Menu",               -- title shown on the window
+local LIB_URL = "https://raw.githubusercontent.com/nonfq/BitchBot-UiLibrary/main/lib.luau"
+
+local ok, src = pcall(game.HttpGet, game, LIB_URL)
+assert(ok and type(src) == "string" and #src > 100, "Could not download the UI library from: " .. LIB_URL)
+local chunk, err = loadstring(src)
+assert(chunk, "Library failed to compile: " .. tostring(err))
+
+local Lib = chunk({
+	Name      = "My Menu",               -- window title
 	ToggleKey = Enum.KeyCode.LeftAlt,    -- key that opens / closes the menu
 })
 
+-- =====================================================================
+--  TAB 1: every element, with a comment saying what it does
+-- =====================================================================
 local Tab = Lib:AddTab("Showcase")
 
+---------------------------------------------------------------- LEFT SIDE
 local Toggles = Tab:AddGroup("Toggles", "left")
 
+-- Plain on/off switch.  :Get() -> true / false
 local plainToggle = Toggles:AddToggle("Plain Toggle", false, {
 	Tooltip = "Hover text appears here",
 })
@@ -91,9 +103,15 @@ Other:AddButton("Print All Values", function()
 	Lib:Notify("Values printed to the console (F9)")
 end)
 
+-- =====================================================================
+--  DRAW THE MENU  (always the last menu line; Settings tab is added for you)
+-- =====================================================================
 Lib:Show()
 
-
+-- =====================================================================
+--  YOUR OWN LOGIC GOES BELOW. Read the handles whenever you need them.
+--  Example: a loop that reacts to the plain toggle.
+-- =====================================================================
 local loop = game:GetService("RunService").Heartbeat:Connect(function()
 	if plainToggle:Get() then
 		-- do something every frame while the toggle is on
