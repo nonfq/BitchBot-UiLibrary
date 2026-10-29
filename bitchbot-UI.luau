@@ -1,4 +1,4 @@
-local Lib = loadstring(readfile("bitchbot/BitchBotLib.lua"))({
+local Lib = loadstring(readfile("https://raw.githubusercontent.com/nonfq/BitchBot-UiLibrary/main/main.luau"))({
 	Name      = "My Menu",               -- title shown on the window
 	ToggleKey = Enum.KeyCode.LeftAlt,    -- key that opens / closes the menu
 })
