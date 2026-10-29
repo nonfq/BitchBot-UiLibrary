@@ -1749,6 +1749,7 @@ function menu.Initialize(menutable)
 								y_pos += 18
 							elseif v2.type == "slider" then
 								menu.options[v.name][g_name][v2.name] = {}
+								if not (type(v2.decimal) == "number" and v2.decimal > 0 and v2.decimal < 1) then v2.decimal = nil end
 								menu.options[v.name][g_name][v2.name][4] = Draw:Slider(
 									v2.name,
 									v2.stradd,
@@ -4738,7 +4739,7 @@ function Library.Load(tabs)
 	assert(type(tabs) == "table", "Library.Load expects a table of tabs")
 	local all = {}
 	for _, t in ipairs(tabs) do all[#all + 1] = t end
-	all[#all + 1] = SETTINGS_TAB                      -- Settings tab is always last
+	all[#all + 1] = SETTINGS_TAB[1]                   -- Settings tab is always last
 	menu.Initialize(all)
 
 	do
@@ -4854,7 +4855,7 @@ function Library:AddTab(tabName)
 		function Group:AddSlider(name, default, min, max, opts)
 			opts = opts or {}
 			return add({ type = "slider", name = name, value = default, minvalue = min, maxvalue = max,
-				stradd = opts.Suffix, decimal = opts.Decimals, custom = opts.Custom })
+				stradd = opts.Suffix, decimal = (opts.Decimals and opts.Decimals > 0) and 10 ^ (-opts.Decimals) or nil, custom = opts.Custom })
 		end
 
 		-- Dropdown (pick ONE): name, { "A", "B" }, starting index
@@ -4894,7 +4895,17 @@ end
 
 -- Lib:Show() draws the menu (the Settings tab is added for you).
 function Library:Show()
-	return Library.Load(self._tabs)
+	local ok, err = pcall(Library.Load, self._tabs)
+	if not ok then
+		-- building failed: don't leave a half-drawn, dead menu on screen
+		pcall(function() if NotifConnection then NotifConnection:Disconnect() end end)
+		if menu then pcall(function() for _, c in pairs(menu.connections) do if type(c) == "function" then c() else c:Disconnect() end end end) end
+		pcall(function() game:GetService("ContextActionService"):UnbindAction("BB Keycheck") end)
+		KillAllDrawings()
+		warn("[BitchBot UI] Menu failed to build: " .. tostring(err))
+		error("[BitchBot UI] Menu failed to build: " .. tostring(err), 0)
+	end
+	return Library
 end
 
 local genv = (getgenv and getgenv()) or _G
