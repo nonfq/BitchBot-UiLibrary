@@ -1,2 +1,2 @@
 # BitchBot-UiLibrary
-Broken Ui library for roblox. Asked CLaude to fix it.
+- Original: https://github.com/Eazvy/UILibs/tree/main/Librarys/Bitchbot
