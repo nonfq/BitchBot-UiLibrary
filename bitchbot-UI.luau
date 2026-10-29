@@ -1,4 +1,4 @@
-local LIB_URL = "https://raw.githubusercontent.com/nonfq/BitchBot-UiLibrary/main/lib.luau"
+local LIB_URL = "https://raw.githubusercontent.com/nonfq/BitchBot-UiLibrary/main/main.luau"
 
 local ok, src = pcall(game.HttpGet, game, LIB_URL)
 assert(ok and type(src) == "string" and #src > 100, "Could not download the UI library from: " .. LIB_URL)
