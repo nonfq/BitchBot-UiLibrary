@@ -662,7 +662,21 @@ CreateThread(function()
 end)
 
 local LOCAL_PLAYER = Players.LocalPlayer
-local LOCAL_MOUSE = LOCAL_PLAYER:GetMouse()
+local REAL_MOUSE = LOCAL_PLAYER:GetMouse()
+-- The menu's hit-testing was written for a fixed 36px top-bar offset between Mouse.Y and the
+-- screen space Drawing objects use. That offset isn't the same on every Roblox version/setup, which
+-- made clicks land lower than what was drawn. Read the REAL screen position instead
+-- (GetMouseLocation is in the same space as Drawing) and keep the library's "y - 36" convention.
+local LOCAL_MOUSE = setmetatable({}, {
+	__index = function(_, k)
+		if k == "x" then
+			return game:GetService("UserInputService"):GetMouseLocation().X
+		elseif k == "y" then
+			return game:GetService("UserInputService"):GetMouseLocation().Y - 36
+		end
+		return REAL_MOUSE[k]
+	end,
+})
 local TEAMS = game:GetService("Teams")
 local INPUT_SERVICE = game:GetService("UserInputService")
 local GAME_SETTINGS = UserSettings():GetService("UserGameSettings")
