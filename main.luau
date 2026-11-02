@@ -1794,6 +1794,7 @@ function menu.Initialize(menutable)
 								menu.options[v.name][g_name][v2.name][2] = v2.type
 								menu.options[v.name][g_name][v2.name][5] = false
 								menu.options[v.name][g_name][v2.name][6] = v2.values
+								menu.options[v.name][g_name][v2.name].noconfig = v2.noconfig
 
 								if v2.x == nil then
 									menu.options[v.name][g_name][v2.name][3] = { v1.x + 7, v1.y + y_pos - 1, v1.width - 16 }
@@ -2843,7 +2844,7 @@ function menu.Initialize(menutable)
 			for k1, v1 in pairs(menu.options) do
 				for k2, v2 in pairs(v1) do
 					for k3, v3 in pairs(v2) do
-						if v3[2] == tostring(v) and k3 ~= "Configs" and k3 ~= "Player Status" and k3 ~= "ConfigName"
+						if v3[2] == tostring(v) and k3 ~= "Configs" and k3 ~= "Player Status" and k3 ~= "ConfigName" and not v3.noconfig
 						then
 							figgy ..= k1 .. "|" .. k2 .. "|" .. k3 .. "|" .. tostring(v3[1]) .. "\n"
 						end
@@ -4809,6 +4810,7 @@ end
 --      Lib:Show()                                       -- draws the menu
 -- =====================================================================
 Library._tabs = {}
+Library._playerLists = {}
 local KEY_MODES = { Hold = 1, Toggle = 2, HoldOff = 3, Always = 4 }
 
 function Library:AddTab(tabName)
@@ -4902,6 +4904,80 @@ function Library:AddTab(tabName)
 			return add({ type = "textbox", name = name, text = default or "" })
 		end
 
+		-- Player list: a dropdown of everyone in the server, refreshed every 0.1s.
+		-- opts: Interval = 0.1            seconds between refreshes
+		--       IncludeLocal = false      show yourself in the list
+		--       DisplayNames = false      show "DisplayName (@Name)" instead of just the name
+		--       NoneText = "None"         text of the first (nothing selected) row
+		-- Handle: :GetPlayer() -> Player or nil     :GetName() -> string or nil     :Refresh()
+		-- The list is sorted A-Z, holds up to 29 players, and is paused while it is open
+		-- (so a click can never land on the wrong person).
+		function Group:AddPlayerList(name, opts)
+			opts = opts or {}
+			local noneText = opts.NoneText or "None"
+			local values = { noneText }                    -- the dropdown reads this table live
+			local entries = {}                             -- entries[i] = Player for values[i]
+			local lastIdx, lastSig = 1, ""
+			local el = { type = "dropbox", name = name, value = 1, values = values, noconfig = true }
+
+			local function option() return menu.options[tab.name][groupName][name] end
+			local function label(p)
+				local text = p.Name
+				if opts.DisplayNames and p.DisplayName ~= p.Name then text = p.DisplayName .. " (@" .. p.Name .. ")" end
+				if #text > 22 then text = text:sub(1, 20) .. ".." end
+				return text
+			end
+
+			local function refresh()
+				local opt = option()
+				if not opt or opt[5] then return end          -- missing, or dropdown is open: don't touch
+				local picked = entries[opt[1]]                -- what the user has selected right now
+				local pickedId = picked and picked.UserId or nil
+
+				local list = {}
+				for _, p in ipairs(Players:GetPlayers()) do
+					if opts.IncludeLocal or p ~= LOCAL_PLAYER then list[#list + 1] = p end
+				end
+				table.sort(list, function(a, b) return a.Name:lower() < b.Name:lower() end)
+				while #list > 29 do list[#list] = nil end
+
+				local sig = {}
+				for i, p in ipairs(list) do sig[i] = p.UserId .. p.Name end
+				sig = table.concat(sig, ",") .. "|" .. tostring(pickedId)
+				if sig == lastSig then return end             -- nothing changed, skip the work
+				lastSig = sig
+
+				for i = #values, 1, -1 do values[i] = nil end
+				entries = {}
+				values[1] = noneText
+				local newIdx = 1
+				for i, p in ipairs(list) do
+					values[i + 1] = label(p)
+					entries[i + 1] = p
+					if p.UserId == pickedId then newIdx = i + 1 end
+				end
+				opt[1] = newIdx                                -- selected player left => back to "None"
+				lastIdx = newIdx
+				opt[4][1].Text = values[newIdx]
+			end
+
+			table.insert(Library._playerLists, { refresh = refresh, interval = opts.Interval or 0.1, acc = 0 })
+
+			return add(el, {
+				GetPlayer = function()
+					local opt = option()
+					local p = opt and entries[opt[1]]
+					return (p and p.Parent) and p or nil
+				end,
+				GetName = function()
+					local opt = option()
+					local p = opt and entries[opt[1]]
+					return (p and p.Parent) and p.Name or nil
+				end,
+				Refresh = refresh,
+			})
+		end
+
 		return Group
 	end
 	return Tab
@@ -4918,6 +4994,22 @@ function Library:Show()
 		KillAllDrawings()
 		warn("[BitchBot UI] Menu failed to build: " .. tostring(err))
 		error("[BitchBot UI] Menu failed to build: " .. tostring(err), 0)
+	end
+
+	-- one shared loop keeps every player list fresh (disconnected automatically on unload)
+	if #Library._playerLists > 0 then
+		for _, pl in ipairs(Library._playerLists) do pcall(pl.refresh) end
+		menu.connections.playerlists = game:GetService("RunService").Heartbeat:Connect(function(dt)
+			if menu.unloaded then return end
+			for _, pl in ipairs(Library._playerLists) do
+				pl.acc = pl.acc + dt
+				if pl.acc >= pl.interval then
+					pl.acc = 0
+					local ok, e = pcall(pl.refresh)
+					if not ok then warn("[BitchBot UI] player list error: " .. tostring(e)) end
+				end
+			end
+		end)
 	end
 	return Library
 end
