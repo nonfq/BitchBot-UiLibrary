@@ -73,6 +73,16 @@ local multi = Dropdowns:AddMultiDropdown("Multi Dropdown", {
 	{ "Legs", false },
 })
 
+-- Player list: a dropdown of everyone in the server, refreshed every 0.1 seconds.
+-- :GetPlayer() -> the selected Player (or nil)   :GetName() -> their name (or nil)
+-- Options: Interval = 0.1, IncludeLocal = false, DisplayNames = false
+local PlayersBox = Tab:AddGroup("Player List", "right")
+local playerList = PlayersBox:AddPlayerList("Players", { Interval = 0.1 })
+PlayersBox:AddButton("Print Selected Player", function()
+	local plr = playerList:GetPlayer()
+	Lib:Notify(plr and ("Selected: " .. plr.Name) or "Nobody selected")
+end)
+
 local Other = Tab:AddGroup("Text & Buttons", "right")
 
 -- Text box. Click it, type, press Enter. :Get() -> the text
